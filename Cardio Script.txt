@@ -1,0 +1,87 @@
+#Schizophrenia Project
+
+
+#USER INPUTS
+# set working directory <- this is set to your scratch directory automatically
+  cd /scratch//${USER}  
+# set main directory for projects <- you must set this to the folder you want to keep the GWAS projects in
+  main_dir="/scratch/am2609/Gwas"
+# set name of your project   <- you must set this
+  proj_name="Schiz"
+#NO FURTHER INPUTS NEEDED  
+# create the folders 
+  sbatch --export=main_dir="${main_dir}",proj_name="${proj_name}" /scratch/am2609/Gwas/code_current/folders.sh
+  
+  
+  
+  
+# USER INPUTS
+# set main directory for projects <- this should be the same as the main file given in folders.sh
+  main_dir="/scratch/am2609/Gwas"
+# set name of your project  <- this should be the same as the main file given in folders.sh
+  proj_name="Schiz"  
+# set name for the outputed bgen file <- default is the same as the project name
+  output_name="${proj_name}"   
+# set input file containing snp list <- this should be the name of a file in the input folder 
+  input_snps_file="all_snps.txt"
+# NO FURTHER INPUT NEEDED  
+# create snp file address  
+  input_snps_add="${main_dir}/projects/${proj_name}/input/${input_snps_file}"
+# folders for output 
+  error_dir="${main_dir}/projects/${proj_name}/errors"
+  output_dir="${main_dir}/projects/${proj_name}/bgen"
+#run the command to extract the relevant snps from the .bgen files
+  sbatch --export=input_snps="${input_snps_add}",output_dir="${output_dir}",output_name="${output_name}" --output="${error_dir}"/qctool_%A.out --error="${error_dir}"/qctool_%A.err "${main_dir}"/code/qctool_run2.sh
+  
+  
+  # for calculating r2
+  #USER INPUTS
+  # USER INPUTS
+# set main directory for projects <- this should be the same as the main file given in folders.sh
+  main_dir="/scratch/am2609/Gwas"
+# set name of your project  <- this should be the same as the main file given in folders.sh
+  proj_name="Schiz"  
+# set name for the outputed bgen file <- default is the same as the project name
+  output_name="${proj_name}"   
+# set sample file containing outcomes and covariates as requested in previous two files (this should be a .sample and placed in the input folder for that project)
+  sample_file="schitz.sample"
+# set bgen file name <- default name is the project name, should match qctool instruction above (this should be a .bgen file and in the bgen folder).  
+  bgen_file_name="${proj_name}"
+# NO FURTHER INPUT NEEDED  
+# folders for output 
+  error_dir="${main_dir}/projects/${proj_name}/errors"
+  output_dir="${main_dir}/projects/${proj_name}/bgen"
+ #files for input 
+  sample1="${main_dir}/projects/${proj_name}/input/${sample_file}"
+  bgen1="${main_dir}/projects/${proj_name}/bgen/${bgen_file_name}.bgen"
+#run the command to extract the relevant snps from the .bgen files
+  sbatch --export=sample_file="${sample1}",bgen_file="${bgen1}",output_dir="${output_dir}",output_name="${output_name}" --output="${error_dir}"/qctool_%A.out --error="${error_dir}"/qctool_%A.err "${main_dir}"/code/qctool_r2.sh
+  
+  
+  
+  
+  #USER INPUTS  
+# set main directory for projects <- this should be the same as the main file given in folders.sh
+  main_dir="/scratch/am2609/Gwas"
+# set name of your project  <- this should be the same as the main file given in folders.sh
+  proj_name="Schiz"  
+# set name for the associations file <- default is the same as the project name   
+  output_name="${proj_name}" 
+# set input file containing outcome names list <- this should be line seperated, with a final blank line and placed in the input folder for that project
+  input_file1="outcomes"
+# set covariates for snptest command <- default is first 10 principle components
+  covar="PC1 PC2 PC3 PC4 PC5 PC6 PC7 PC8 PC9 PC10"
+# set sample file containing outcomes and covariates as requested in previous two files (this should be a .sample and placed in the input folder for that project)
+  sample_file="schitz.sample"
+# set bgen file name <- default name is the project name, should match qctool instruction above (this should be a .bgen file and in the bgen folder).  
+  bgen_file_name="${proj_name}"
+# NO FURTHER INPUT NEEDED  
+# create input addresses
+  input1="${main_dir}/projects/${proj_name}/input/${input_file1}"
+  sample1="${main_dir}/projects/${proj_name}/input/${sample_file}"
+  bgen1="${main_dir}/projects/${proj_name}/bgen/${bgen_file_name}.bgen"
+# folders for output (as outlined in structure plan above)
+  error_dir="${main_dir}/projects/${proj_name}/errors"
+  output_dir="${main_dir}/projects/${proj_name}/output"
+#run command to run snptest  
+ sbatch --export=outcome_file="${input1}",covar="${covar}",sample_file="${sample1}",bgen_file="${bgen1}",proj="${proj_name}",output_dir="${output_dir}" --output="${error_dir}"/snptest_%A.out --error="${error_dir}"/snptest_%A.err "${main_dir}"/code/snptest2.sh
