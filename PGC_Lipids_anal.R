@@ -2,22 +2,14 @@
 # Date = Nov 2018
 # Purpose = merge UKBB data with exposure data 
 #################################
-
 library(MendelianRandomization)
 library(epiDisplay)
 library(TwoSampleMR)
 library(ggplot2)
 
 
-Schiz_sch_1 <- read.table("~/CVD_Schizophrenia/inputs/Schiz_sch_1.out", header=TRUE, quote="\"")
-keepnames<- c( "rsid","chromosome", "position", "alleleA", "alleleB",
-               "all_maf", "frequentist_add_pvalue", "all_total", "frequentist_add_beta_1", "frequentist_add_se_1" )
-# allele B is the effect allele
-Schiz_1<-Schiz_sch_1[,colnames(Schiz_sch_1)%in%keepnames]
-names(Schiz_1)<- c("rsid","chr", "pos", "Association.alleles_sch", "Effect.allele_sch",  
-                   "n_sch",  "maf_sch" ,"p_sch" , "beta_sch", "se_sch" )                                                             
+Schiz_1 <- read.csv("~/CVD_Schizophrenia/inputs/PGC_plus_proxy.csv",stringsAsFactors=FALSE)                                                        
 
-#steve data for snp list for bp
 
 lipids<- read.csv("~/CVD_Schizophrenia/data/lipid_mrcat_all_MR_Catalogue_v2.csv")
 lipids<-lipids[lipids$Source=="GLGC",]
@@ -35,25 +27,27 @@ lipids<-lipids[, colnames(lipids)%in% keepnames_lipids]
 
 names(lipids)<-c("rsid", "hg19_coordinates","trait", "Effect.allele", "Association.alleles", "maf", "beta","se", "chr", "pos") 
 
-############## data merge
+
+############## bp data merge
 ##### merge data on chromosome position
 
-all_lipids<-merge(lipids, Schiz_1, by=c("rsid"), all.x=TRUE, all.y=TRUE)
-length(unique(all_lipids[,"rsid"]))==nrow(lipids)
-nrow(all_lipids[all_lipids$chr.x!=all_lipids$chr.y,])
-all_lipids[is.na(all_lipids$chr.y),]$hg19_coordinates
-# 0 variants missing from UK BB data
-all_lipids<-all_lipids[!is.na(all_lipids$chr.x),]
+all_lipids<-merge(lipids, Schiz_1, by=c("rsid"), all.x=TRUE)
+length(unique(all_lipids[,"rsid"]))==nrow(bp)
+# TRUE so merge is 1:1
+all_lipids$merge_Errors<-(all_lipids$chr.x==all_lipids$chr.y & all_lipids$pos.x==all_lipids$pos.y)
+all_lipids[all_lipids$merge_Errors==F,]
+all_lipids[is.na(all_lipids$merge_Errors),]
+# there were no suitable proxies found for missing snp
 
+all_lipids<-all_lipids[!is.na(all_lipids$merge_Errors),]
+# all true
 
 
 ### check alignment
-
 all_lipids$align<- ifelse((as.character(all_lipids$Effect.allele)==as.character(all_lipids$Effect.allele_sch)), T, F)
 all_lipids$align2<- ifelse((as.character(all_lipids$Effect.allele)==as.character(all_lipids$Association.alleles_sch)), T, F)
-# this table shows how many allele's don't match up 
 table(all_lipids$align, all_lipids$align2)
-
+all_lipids[all_lipids$align==F&all_lipids$align2==F,]
 # 1 variant (rs2954022) is not possible to align. lipid data gives A/C and Biobank only has C/T 
 # - no way to change strand to match up
 # DROP 1 var
@@ -77,9 +71,9 @@ summary(all_lipids$align2)
 all_lipids$align3<- ifelse((all_lipids$Effect.allele_sch%in%c("A","T"))&(all_lipids$Association.alleles_sch%in%c("A","T")), T, F)
 all_lipids$align3<- ifelse((all_lipids$Effect.allele_sch%in%c("C","G"))&(all_lipids$Association.alleles_sch%in%c("C","G")), T, all_lipids$align3)
 summary(all_lipids$align3)
-lipids_check<-all_lipids[all_lipids$align3==T,c("rsid", "maf_sch", "beta", "Effect.allele", "Effect.allele_sch", "trait", "maf_sch")]
+lipids_check<-all_lipids[all_lipids$align3==T,c("rsid", "maf", "beta",  "beta_sch", "Effect.allele", "trait")]
 lipids_check
-# checked maf on phenoscanner for these 6, no flip needed
+# checked maf on phenoscanner for these 5: only rs4256980 is incorrectly aligned due to incorrect strand/palindrome problem
 # no flipping needed
 
 
@@ -137,7 +131,7 @@ dat <- harmonise_data(
 )
 
 mr_heterogeneity(dat)
-# no evidence of hetrogeneity
+#  evidence of hetrogeneity
 
 mr_pleiotropy_test(dat)
 # no evidence of pleiotropy driving result
@@ -148,7 +142,7 @@ p2 <- mr_forest_plot(res_single)
 p2[[1]]
 
 #forest plot of leave one out
-res_loo <- mr_leaveoneout(dat)
+res_loo <- mr_leaveoneout(dat, method = mr_egger_regression)
 p3 <- mr_leaveoneout_plot(res_loo)
 p3[[1]]
 
@@ -165,10 +159,10 @@ plot+ labs(title="LDL")
 # no significant fit; check for outlier
 mr_plot(mr.fit, labels=TRUE, interactive = FALSE, line="IVW") 
 
-LDL_out<-LDL[LDL$rsid!="rs646776",]
+LDL_out<-LDL[LDL$rsid!="rs13107325",]
 mr.fit2 <- mr_input(LDL_out$beta, LDL_out$se, LDL_out$beta_sch, LDL_out$se_sch, snps=LDL_out$rsid)
 mr_plot(mr_allmethods(mr.fit2, method = "ivw")) 
-mr_plot(mr.fit2, labels=TRUE, interactive = FALSE, line="ivw") +labs(title="LDL; re6776 excluded; ivw")
+mr_plot(mr.fit2, labels=TRUE, interactive = FALSE, line="ivw") +labs(title="LDL; rs1310732 excluded; ivw")
 
 ### clearly no relations between bp and schitzophrenia
 
@@ -195,7 +189,7 @@ dat <- harmonise_data(
 )
 
 mr_heterogeneity(dat)
-# no evidence of hetrogeneity
+#  evidence of hetrogeneity
 
 mr_pleiotropy_test(dat)
 # no evidence of pleiotropy driving result
@@ -253,7 +247,7 @@ dat <- harmonise_data(
 )
 
 mr_heterogeneity(dat)
-# no evidence of hetrogeneity
+#evidence of hetrogeneity
 
 mr_pleiotropy_test(dat)
 # no evidence of pleiotropy driving result
@@ -267,4 +261,6 @@ p2[[1]]
 res_loo <- mr_leaveoneout(dat)
 p3 <- mr_leaveoneout_plot(res_loo)
 p3[[1]]
+
+
 
